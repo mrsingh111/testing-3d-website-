@@ -1,312 +1,318 @@
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
 const sceneFrame = document.getElementById("sceneFrame");
-const hero = document.getElementById("hero");
+const threeLayer = document.getElementById("threeLayer");
 const launchButton = document.getElementById("launchButton");
 const boostButton = document.getElementById("boostButton");
 const stopButton = document.getElementById("stopButton");
+const soundButton = document.getElementById("soundButton");
 const speedReadout = document.getElementById("speedReadout");
-const threeLayer = document.getElementById("threeLayer");
-const carBody = document.getElementById("carBody");
-const laneGrid = document.querySelector(".lane-grid");
-const roadShine = document.querySelector(".road-shine");
-const speedLines = document.querySelectorAll(".speed-lines span");
-const THREE_NS = window.THREE;
+const modeReadout = document.getElementById("modeReadout");
+const audioReadout = document.getElementById("audioReadout");
+const bgMusic = document.getElementById("bgMusic");
 
-let boosted = false;
-let started = false;
-let speed = 0;
-let targetSpeed = 0;
-
-const pointer = {
-  x: 0,
-  y: 0
+const state = {
+  started: false,
+  boosted: false,
+  musicPlaying: false,
+  speed: 0,
+  targetSpeed: 0,
+  pointerX: 0,
+  pointerY: 0
 };
 
-function syncUiState() {
-  document.documentElement.style.setProperty("--road-speed", boosted ? "1.1s" : "2.2s");
-  document.documentElement.style.setProperty("--wheel-speed", boosted ? "0.28s" : "0.5s");
-  document.documentElement.style.setProperty("--line-speed", boosted ? "0.6s" : "1.2s");
-  targetSpeed = started ? (boosted ? 232 : 148) : 0;
-  boostButton.textContent = boosted ? "Normal Speed" : "Boost Speed";
-  launchButton.textContent = started ? "Running" : "Launch Scene";
-  stopButton.textContent = started ? "Stop" : "Stopped";
-  sceneFrame.classList.toggle("is-launched", started || boosted);
-  sceneFrame.classList.toggle("is-running", started);
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x080a11, 18, 58);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 160);
+camera.position.set(0, 3.9, 14);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 0);
+threeLayer.appendChild(renderer.domElement);
+
+const ambient = new THREE.AmbientLight(0xffffff, 1.5);
+scene.add(ambient);
+
+const keyLight = new THREE.DirectionalLight(0xfbf2df, 2.4);
+keyLight.position.set(6, 10, 8);
+scene.add(keyLight);
+
+const cyanLight = new THREE.PointLight(0x64f2ff, 20, 60, 2);
+cyanLight.position.set(-6, 4, 10);
+scene.add(cyanLight);
+
+const roseLight = new THREE.PointLight(0xff6f8f, 18, 56, 2);
+roseLight.position.set(8, 3, 7);
+scene.add(roseLight);
+
+const road = new THREE.Mesh(
+  new THREE.PlaneGeometry(18, 180),
+  new THREE.MeshStandardMaterial({
+    color: 0x10131b,
+    roughness: 0.86,
+    metalness: 0.08,
+    emissive: 0x080d16,
+    emissiveIntensity: 0.55
+  })
+);
+road.rotation.x = -Math.PI / 2;
+road.position.set(0, -1.48, -58);
+scene.add(road);
+
+const laneMarkers = [];
+const laneMaterial = new THREE.MeshBasicMaterial({ color: 0x64f2ff });
+for (let index = 0; index < 36; index += 1) {
+  const marker = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 2.8), laneMaterial);
+  marker.rotation.x = -Math.PI / 2;
+  marker.position.set(0, -1.46, -index * 5.2);
+  scene.add(marker);
+  laneMarkers.push(marker);
 }
 
-function animateSpeed() {
-  speed += (targetSpeed - speed) * 0.08;
-  speedReadout.textContent = `${Math.round(speed)} KM/H`;
+const railMaterial = new THREE.MeshBasicMaterial({ color: 0xf8c86a });
+const rails = [];
+[-5.4, 5.4].forEach((x) => {
+  for (let index = 0; index < 30; index += 1) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 3.2), railMaterial);
+    rail.position.set(x, -1.08, -index * 6);
+    scene.add(rail);
+    rails.push(rail);
+  }
+});
+
+const skyline = [];
+const skylineMaterial = new THREE.MeshStandardMaterial({
+  color: 0x172133,
+  emissive: 0x1d3854,
+  emissiveIntensity: 0.75,
+  roughness: 0.66,
+  metalness: 0.2
+});
+for (let index = 0; index < 48; index += 1) {
+  const tower = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      THREE.MathUtils.randFloat(0.7, 1.8),
+      THREE.MathUtils.randFloat(2.6, 8.6),
+      THREE.MathUtils.randFloat(0.7, 1.6)
+    ),
+    skylineMaterial
+  );
+  const side = index % 2 === 0 ? -1 : 1;
+  tower.position.set(
+    side * THREE.MathUtils.randFloat(7.5, 16),
+    tower.geometry.parameters.height / 2 - 1.4,
+    -THREE.MathUtils.randFloat(8, 95)
+  );
+  tower.userData.baseX = tower.position.x;
+  scene.add(tower);
+  skyline.push(tower);
+}
+
+const starsGeometry = new THREE.BufferGeometry();
+const stars = new Float32Array(1100 * 3);
+for (let index = 0; index < 1100; index += 1) {
+  stars[index * 3] = THREE.MathUtils.randFloatSpread(120);
+  stars[index * 3 + 1] = THREE.MathUtils.randFloat(6, 36);
+  stars[index * 3 + 2] = -THREE.MathUtils.randFloat(8, 150);
+}
+starsGeometry.setAttribute("position", new THREE.BufferAttribute(stars, 3));
+const starField = new THREE.Points(
+  starsGeometry,
+  new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 0.08,
+    transparent: true,
+    opacity: 0.9
+  })
+);
+scene.add(starField);
+
+const underGlow = new THREE.Mesh(
+  new THREE.CircleGeometry(2.7, 32),
+  new THREE.MeshBasicMaterial({
+    color: 0x64f2ff,
+    transparent: true,
+    opacity: 0.16
+  })
+);
+underGlow.rotation.x = -Math.PI / 2;
+underGlow.position.set(0, -1.4, 6.1);
+scene.add(underGlow);
+
+const loader = new GLTFLoader();
+let carModel = null;
+
+loader.load(
+  "assets/sports-car.glb",
+  (gltf) => {
+    carModel = gltf.scene;
+    carModel.scale.set(1.75, 1.75, 1.75);
+    carModel.position.set(0, -1.15, 6.2);
+    carModel.rotation.y = Math.PI;
+
+    carModel.traverse((child) => {
+      if (!child.isMesh) {
+        return;
+      }
+      child.castShadow = true;
+      child.receiveShadow = true;
+      if (child.material && "roughness" in child.material) {
+        child.material.roughness = 0.55;
+        child.material.metalness = 0.25;
+      }
+    });
+
+    scene.add(carModel);
+  },
+  undefined,
+  () => {
+    modeReadout.textContent = "Model Error";
+  }
+);
+
+function resizeScene() {
+  const width = threeLayer.clientWidth;
+  const height = threeLayer.clientHeight;
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+
+function updateUi() {
+  state.targetSpeed = state.started ? (state.boosted ? 248 : 154) : 0;
+  boostButton.textContent = state.boosted ? "Cruise" : "Boost";
+  soundButton.textContent = state.musicPlaying ? "Pause Music" : "Play Music";
+  modeReadout.textContent = state.started ? (state.boosted ? "Hyper" : "Cruising") : "Idle";
+  audioReadout.textContent = state.musicPlaying ? "Playing" : "Muted";
+  sceneFrame.classList.toggle("is-running", state.started);
+}
+
+async function toggleMusic(forcePlay) {
+  const shouldPlay = typeof forcePlay === "boolean" ? forcePlay : !state.musicPlaying;
+
+  if (!shouldPlay) {
+    bgMusic.pause();
+    state.musicPlaying = false;
+    updateUi();
+    return;
+  }
+
+  try {
+    await bgMusic.play();
+    state.musicPlaying = true;
+  } catch (error) {
+    state.musicPlaying = false;
+  }
+  updateUi();
 }
 
 function launchScene() {
-  started = true;
-  sceneFrame.classList.add("is-launched");
-  sceneFrame.classList.add("is-running");
-  sceneFrame.style.animation = "scenePulse 600ms ease";
-  sceneFrame.scrollIntoView({ behavior: "smooth", block: "center" });
-  syncUiState();
+  state.started = true;
+  sceneFrame.style.animation = "scenePulse 640ms ease";
   window.setTimeout(() => {
     sceneFrame.style.animation = "";
-  }, 650);
+  }, 700);
+  updateUi();
 }
 
 function stopScene() {
-  started = false;
-  boosted = false;
-  syncUiState();
+  state.started = false;
+  state.boosted = false;
+  updateUi();
 }
 
-hero.addEventListener("pointermove", (event) => {
-  const bounds = hero.getBoundingClientRect();
-  pointer.x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2;
-  pointer.y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2;
+function onPointerMove(event) {
+  const bounds = sceneFrame.getBoundingClientRect();
+  state.pointerX = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2;
+  state.pointerY = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2;
+  sceneFrame.style.transform = `rotateX(${state.pointerY * -4}deg) rotateY(${state.pointerX * 5}deg)`;
+}
 
-  const rotateY = pointer.x * 8;
-  const rotateX = pointer.y * -5;
-  sceneFrame.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-});
-
-hero.addEventListener("pointerleave", () => {
-  pointer.x = 0;
-  pointer.y = 0;
+function onPointerLeave() {
+  state.pointerX = 0;
+  state.pointerY = 0;
   sceneFrame.style.transform = "rotateX(0deg) rotateY(0deg)";
-});
-
-launchButton.addEventListener("click", launchScene);
-boostButton.addEventListener("click", () => {
-  if (!started) {
-    started = true;
-  }
-  boosted = !boosted;
-  syncUiState();
-  launchScene();
-});
-stopButton.addEventListener("click", stopScene);
-
-let domOffset = 0;
-let domTick = 0;
-
-function animateDomLayer() {
-  domTick += started ? (boosted ? 0.18 : 0.1) : 0.02;
-  domOffset += started ? (boosted ? 22 : 10) : 0;
-
-  laneGrid.style.backgroundPosition = `0 0, 0 ${domOffset}px`;
-  roadShine.style.opacity = started ? (boosted ? "0.9" : "0.45") : "0.15";
-  roadShine.style.transform = `translateY(${(domOffset % 160) * 0.06}px)`;
-
-  const bob = started ? Math.sin(domTick * 2.4) * (boosted ? 12 : 7) : 0;
-  const drift = started ? Math.sin(domTick) * (boosted ? 8 : 4) : 0;
-  const scale = started ? (boosted ? 1.04 : 1.015) : 1;
-  carBody.style.transform = `translateX(calc(-50% + ${drift}px)) translateY(${bob}px) translateZ(140px) scale(${scale})`;
-
-  speedLines.forEach((line, index) => {
-    const base = started ? 0.25 + ((index + 1) / speedLines.length) * 0.6 : 0.08;
-    line.style.opacity = String(base);
-  });
-
-  animateSpeed();
-  requestAnimationFrame(animateDomLayer);
 }
 
-syncUiState();
-animateDomLayer();
-
-if (THREE_NS) {
-  const scene = new THREE_NS.Scene();
-  scene.fog = new THREE_NS.Fog(0x07020e, 18, 58);
-
-  const camera = new THREE_NS.PerspectiveCamera(52, 1, 0.1, 140);
-  camera.position.set(0, 4.8, 10.8);
-
-  const renderer = new THREE_NS.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setClearColor(0x000000, 0);
-  threeLayer.appendChild(renderer.domElement);
-
-  const ambient = new THREE_NS.AmbientLight(0xffffff, 0.7);
-  scene.add(ambient);
-
-  const magentaLight = new THREE_NS.PointLight(0xff4fd8, 9, 40, 2);
-  magentaLight.position.set(-5, 6, 2);
-  scene.add(magentaLight);
-
-  const cyanLight = new THREE_NS.PointLight(0x5cecff, 10, 44, 2);
-  cyanLight.position.set(6, 5, 4);
-  scene.add(cyanLight);
-
-  const sunLight = new THREE_NS.PointLight(0xff9a41, 8, 48, 2);
-  sunLight.position.set(0, 10, -10);
-  scene.add(sunLight);
-
-  const roadMaterial = new THREE_NS.MeshStandardMaterial({
-    color: 0x12081d,
-    metalness: 0.25,
-    roughness: 0.55,
-    emissive: 0x17071f,
-    emissiveIntensity: 0.45
-  });
-
-  const road = new THREE_NS.Mesh(new THREE_NS.PlaneGeometry(16, 140, 1, 1), roadMaterial);
-  road.rotation.x = -Math.PI / 2;
-  road.position.set(0, -1.55, -44);
-  scene.add(road);
-
-  const laneMaterial = new THREE_NS.MeshBasicMaterial({ color: 0x8ef6ff });
-  const laneMarkers = [];
-
-  for (let index = 0; index < 36; index += 1) {
-    const marker = new THREE_NS.Mesh(new THREE_NS.PlaneGeometry(0.12, 2.4), laneMaterial);
-    marker.rotation.x = -Math.PI / 2;
-    marker.position.set(0, -1.53, -index * 4);
-    scene.add(marker);
-    laneMarkers.push(marker);
+launchButton.addEventListener("click", () => {
+  launchScene();
+  if (!state.musicPlaying) {
+    toggleMusic(true);
   }
+});
 
-  const roadEdgeMaterial = new THREE_NS.MeshBasicMaterial({ color: 0xff4fd8 });
-  const edgeRails = [];
+boostButton.addEventListener("click", () => {
+  state.started = true;
+  state.boosted = !state.boosted;
+  updateUi();
+});
 
-  [-4.8, 4.8].forEach((x) => {
-    for (let index = 0; index < 24; index += 1) {
-      const rail = new THREE_NS.Mesh(new THREE_NS.BoxGeometry(0.12, 0.12, 2.6), roadEdgeMaterial);
-      rail.position.set(x, -1.15, -index * 5.8);
-      scene.add(rail);
-      edgeRails.push(rail);
+stopButton.addEventListener("click", stopScene);
+soundButton.addEventListener("click", () => {
+  toggleMusic();
+});
+
+sceneFrame.addEventListener("pointermove", onPointerMove);
+sceneFrame.addEventListener("pointerleave", onPointerLeave);
+window.addEventListener("resize", resizeScene);
+
+const clock = new THREE.Clock();
+
+function animate() {
+  const elapsed = clock.getElapsedTime();
+  const travel = state.started ? (state.boosted ? 1.1 : 0.48) : 0;
+
+  state.speed += (state.targetSpeed - state.speed) * 0.045;
+  speedReadout.textContent = `${String(Math.round(state.speed)).padStart(3, "0")} KM/H`;
+
+  laneMarkers.forEach((marker) => {
+    marker.position.z += travel;
+    if (marker.position.z > 10) {
+      marker.position.z = -180;
     }
   });
 
-  const cityMaterial = new THREE_NS.MeshStandardMaterial({
-    color: 0x16213f,
-    emissive: 0x2ee6ff,
-    emissiveIntensity: 0.28,
-    metalness: 0.2,
-    roughness: 0.65
+  rails.forEach((rail) => {
+    rail.position.z += travel * 1.15;
+    if (rail.position.z > 12) {
+      rail.position.z = -180;
+    }
   });
 
-  const skyline = [];
-
-  for (let index = 0; index < 34; index += 1) {
-    const width = THREE_NS.MathUtils.randFloat(0.8, 1.8);
-    const height = THREE_NS.MathUtils.randFloat(1.6, 6.2);
-    const depth = THREE_NS.MathUtils.randFloat(0.8, 1.6);
-    const tower = new THREE_NS.Mesh(new THREE_NS.BoxGeometry(width, height, depth), cityMaterial);
-    const side = index % 2 === 0 ? -1 : 1;
-    tower.position.set(
-      side * THREE_NS.MathUtils.randFloat(7.5, 14),
-      height / 2 - 1.5,
-      -THREE_NS.MathUtils.randFloat(10, 90)
-    );
-    tower.userData.baseX = tower.position.x;
-    scene.add(tower);
-    skyline.push(tower);
-  }
-
-  const mountainMaterial = new THREE_NS.MeshStandardMaterial({
-    color: 0x251436,
-    emissive: 0x110717,
-    emissiveIntensity: 0.2,
-    roughness: 0.95
+  skyline.forEach((tower, index) => {
+    tower.position.x = tower.userData.baseX + Math.sin(elapsed * 0.18 + index) * 0.03 + state.pointerX * 0.25;
   });
 
-  for (let index = 0; index < 7; index += 1) {
-    const mountain = new THREE_NS.Mesh(
-      new THREE_NS.ConeGeometry(THREE_NS.MathUtils.randFloat(3.2, 6.8), THREE_NS.MathUtils.randFloat(5, 9), 4),
-      mountainMaterial
-    );
-    mountain.rotation.y = Math.PI * 0.25;
-    mountain.position.set(
-      THREE_NS.MathUtils.randFloatSpread(30),
-      1.3,
-      -THREE_NS.MathUtils.randFloat(24, 70)
-    );
-    scene.add(mountain);
+  starField.rotation.y = elapsed * 0.02;
+  starField.position.x = state.pointerX * 0.7;
+  starField.position.y = state.pointerY * 0.25;
+
+  underGlow.material.opacity = state.started ? (state.boosted ? 0.28 : 0.18) : 0.08;
+  underGlow.scale.setScalar(state.started ? (state.boosted ? 1.2 : 1.05) : 1);
+
+  if (carModel) {
+    carModel.position.y = -1.15 + Math.sin(elapsed * 3.4) * (state.started ? 0.06 : 0.02);
+    carModel.position.x = Math.sin(elapsed * 1.5) * (state.started ? 0.1 : 0.02) + state.pointerX * 0.08;
+    carModel.rotation.z = Math.sin(elapsed * 2.2) * (state.started ? 0.014 : 0.004);
+    carModel.rotation.x = Math.cos(elapsed * 2.8) * (state.started ? 0.012 : 0.004);
+    carModel.rotation.y = Math.PI + state.pointerX * -0.08;
   }
 
-  const starGeometry = new THREE_NS.BufferGeometry();
-  const starCount = 900;
-  const starPositions = new Float32Array(starCount * 3);
+  cyanLight.intensity = state.boosted ? 24 : 18;
+  roseLight.intensity = state.boosted ? 21 : 16;
 
-  for (let index = 0; index < starCount; index += 1) {
-    starPositions[index * 3] = THREE_NS.MathUtils.randFloatSpread(90);
-    starPositions[index * 3 + 1] = THREE_NS.MathUtils.randFloat(2, 34);
-    starPositions[index * 3 + 2] = -THREE_NS.MathUtils.randFloat(10, 120);
-  }
+  camera.position.x += ((state.pointerX * 1.1) - camera.position.x) * 0.03;
+  camera.position.y += ((3.9 - state.pointerY * 0.45) - camera.position.y) * 0.03;
+  camera.position.z += (((state.boosted ? 12.5 : 14) - camera.position.z)) * 0.03;
+  camera.lookAt(state.pointerX * 0.8, -0.6, -8);
 
-  starGeometry.setAttribute("position", new THREE_NS.BufferAttribute(starPositions, 3));
-
-  const stars = new THREE_NS.Points(
-    starGeometry,
-    new THREE_NS.PointsMaterial({
-      color: 0xffffff,
-      size: 0.08,
-      transparent: true,
-      opacity: 0.9
-    })
-  );
-  scene.add(stars);
-
-  const carAura = new THREE_NS.Mesh(
-    new THREE_NS.SphereGeometry(1.35, 20, 20),
-    new THREE_NS.MeshBasicMaterial({
-      color: 0xff4fd8,
-      transparent: true,
-      opacity: 0.08
-    })
-  );
-  carAura.scale.set(1.8, 0.7, 3.4);
-  carAura.position.set(0, -0.35, 5.4);
-  scene.add(carAura);
-
-  const clock = new THREE_NS.Clock();
-
-  function resizeRenderer() {
-    const { clientWidth, clientHeight } = threeLayer;
-    renderer.setSize(clientWidth, clientHeight, false);
-    camera.aspect = clientWidth / clientHeight;
-    camera.updateProjectionMatrix();
-  }
-
-  function animate() {
-    const elapsed = clock.getElapsedTime();
-    const travel = started ? (boosted ? 0.92 : 0.48) : 0;
-
-    laneMarkers.forEach((marker) => {
-      marker.position.z += travel;
-      if (marker.position.z > 6) {
-        marker.position.z = -136;
-      }
-    });
-
-    edgeRails.forEach((rail) => {
-      rail.position.z += travel * 1.12;
-      if (rail.position.z > 8) {
-        rail.position.z = -136;
-      }
-    });
-
-    skyline.forEach((tower, index) => {
-      tower.position.x = tower.userData.baseX + Math.sin(elapsed * 0.18 + index) * 0.06 + pointer.x * 0.3;
-    });
-
-    stars.rotation.y = elapsed * 0.015;
-    stars.position.x = pointer.x * 0.9;
-    stars.position.y = pointer.y * 0.35;
-
-    carAura.material.opacity = started ? (boosted ? 0.14 : 0.08) : 0.04;
-    carAura.scale.z = started ? (boosted ? 4.2 : 3.4) : 2.8;
-
-    camera.position.x += ((pointer.x * 1.2) - camera.position.x) * 0.03;
-    camera.position.y += ((4.8 - pointer.y * 0.55) - camera.position.y) * 0.03;
-    camera.lookAt(pointer.x * 0.9, 0.1, -14);
-
-    magentaLight.intensity = boosted ? 12 : 9;
-    cyanLight.intensity = boosted ? 13 : 10;
-
-    renderer.render(scene, camera);
-    requestAnimationFrame(animate);
-  }
-
-  window.addEventListener("resize", resizeRenderer);
-
-  resizeRenderer();
-  animate();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
 }
+
+resizeScene();
+updateUi();
+animate();

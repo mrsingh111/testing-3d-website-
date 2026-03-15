@@ -3,95 +3,129 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neon Run 3D</title>
+  <title>Neon Run GT</title>
+  <meta name="description" content="A polished 3D car showcase with an interactive model, cinematic motion, and royalty-free music.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="noise"></div>
   <main class="page-shell">
-    <section class="hero" id="hero">
-      <div class="hud">
-        <p class="eyebrow">FUTURE MOTION / 3D SHOWCASE</p>
-        <h1>Car Running Through a Neon 3D World</h1>
-        <p class="intro">
-          A stylized single-page website with a moving road, glowing city depth, and a car that feels like it is racing into the screen.
+    <header class="site-header">
+      <a class="brand" href="#top">
+        <span class="brand-mark">NR</span>
+        <span class="brand-copy">Neon Run GT</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#experience">Experience</a>
+        <a href="#controls">Controls</a>
+        <a href="#credits">Credits</a>
+      </nav>
+    </header>
+
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow">3D AUTOMOTIVE SHOWCASE</p>
+        <h1>A Real 3D Car. A Sharper Look. A Cinematic Drive.</h1>
+        <p class="lead">
+          Neon Run GT is now a proper presentation site with a real 3D sports car model, atmosphere, audio, and a cleaner premium layout built for the web.
         </p>
-        <div class="cta-row">
-          <button class="primary-button" id="launchButton" type="button">Launch Scene</button>
-          <button class="ghost-button" id="boostButton" type="button">Boost Speed</button>
+        <div class="hero-actions" id="controls">
+          <button class="primary-button" id="launchButton" type="button">Launch Drive</button>
+          <button class="ghost-button" id="boostButton" type="button">Boost</button>
           <button class="ghost-button stop-button" id="stopButton" type="button">Stop</button>
+          <button class="ghost-button sound-button" id="soundButton" type="button">Play Music</button>
+        </div>
+        <div class="hero-stats">
+          <article class="stat-tile">
+            <span>Top Speed</span>
+            <strong id="speedReadout">000 KM/H</strong>
+          </article>
+          <article class="stat-tile">
+            <span>Drive State</span>
+            <strong id="modeReadout">Idle</strong>
+          </article>
+          <article class="stat-tile">
+            <span>Audio</span>
+            <strong id="audioReadout">Muted</strong>
+          </article>
         </div>
       </div>
 
-      <section class="scene-wrap" id="scene" aria-label="Animated 3D car scene">
-        <div class="scene" id="sceneFrame">
-          <div class="three-layer" id="threeLayer" aria-hidden="true"></div>
-          <div class="sky-glow sky-glow-left"></div>
-          <div class="sky-glow sky-glow-right"></div>
-          <div class="sun-core"></div>
-
-          <div class="city city-back">
-            <span></span><span></span><span></span><span></span><span></span><span></span>
-          </div>
-          <div class="city city-front">
-            <span></span><span></span><span></span><span></span><span></span><span></span>
-          </div>
-
-          <div class="mountains">
-            <span></span><span></span><span></span>
-          </div>
-
-          <div class="road-perspective">
-            <div class="road-surface"></div>
-            <div class="lane-grid"></div>
-            <div class="road-shine"></div>
-            <div class="road-edge road-edge-left"></div>
-            <div class="road-edge road-edge-right"></div>
-          </div>
-
-          <div class="car" id="carBody">
-            <div class="car-shadow"></div>
-            <div class="car-glow"></div>
-            <div class="car-shell">
-              <div class="car-top"></div>
-              <div class="car-window car-window-front"></div>
-              <div class="car-window car-window-side"></div>
-              <div class="car-light car-light-left"></div>
-              <div class="car-light car-light-right"></div>
-              <div class="headlight-beam beam-left"></div>
-              <div class="headlight-beam beam-right"></div>
-              <div class="exhaust exhaust-left"></div>
-              <div class="exhaust exhaust-right"></div>
-              <div class="wheel wheel-front"></div>
-              <div class="wheel wheel-back"></div>
-            </div>
-          </div>
-
-          <div class="speed-lines">
-            <span></span><span></span><span></span><span></span><span></span><span></span>
-          </div>
-
-          <div class="dash">
-            <div class="stat-card">
-              <span>Mode</span>
-              <strong>Hyperdrive</strong>
-            </div>
-            <div class="stat-card">
-              <span>Speed</span>
-              <strong id="speedReadout">148 KM/H</strong>
-            </div>
-            <div class="stat-card">
-              <span>Depth</span>
-              <strong>3D Perspective</strong>
-            </div>
+      <section class="stage-panel" id="scene">
+        <div class="stage-frame" id="sceneFrame">
+          <div class="stage-glow stage-glow-left"></div>
+          <div class="stage-glow stage-glow-right"></div>
+          <div class="sun-disc"></div>
+          <div class="three-layer" id="threeLayer" aria-label="3D sports car scene"></div>
+          <div class="stage-overlay">
+            <div class="status-pill">LIVE 3D MODEL</div>
+            <div class="status-pill status-pill-alt">SOUNDTRACK READY</div>
           </div>
         </div>
       </section>
     </section>
+
+    <section class="experience-grid" id="experience">
+      <article class="feature-card">
+        <p class="card-label">Visual Direction</p>
+        <h2>Sharper and more premium</h2>
+        <p>
+          The site now leans into a cleaner luxury-performance look instead of a rough prototype dashboard.
+        </p>
+      </article>
+      <article class="feature-card">
+        <p class="card-label">Real Asset</p>
+        <h2>Actual 3D sports car model</h2>
+        <p>
+          A real `.glb` car model is loaded into the scene, replacing the fake shape with an actual interactive object.
+        </p>
+      </article>
+      <article class="feature-card">
+        <p class="card-label">Audio Layer</p>
+        <h2>Royalty-free driving soundtrack</h2>
+        <p>
+          The page includes a free music track you can start and stop from the control rail.
+        </p>
+      </article>
+    </section>
+
+    <section class="info-strip">
+      <article class="info-card">
+        <span>Model Source</span>
+        <strong>Poly Pizza / Quaternius</strong>
+        <p>CC0 public-domain sports car model.</p>
+      </article>
+      <article class="info-card">
+        <span>Music Source</span>
+        <strong>Mixkit</strong>
+        <p>Royalty-free track selected for a driving mood.</p>
+      </article>
+      <article class="info-card">
+        <span>Controls</span>
+        <strong>Launch, Boost, Stop, Music</strong>
+        <p>Designed for desktop and mobile-friendly interaction.</p>
+      </article>
+    </section>
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js"></script>
-  <script src="app.js"></script>
+
+  <footer class="site-footer" id="credits">
+    <p>Built for a live GitHub Pages showcase.</p>
+    <p>3D model: Poly Pizza / Quaternius. Music: Mixkit.</p>
+  </footer>
+
+  <audio id="bgMusic" preload="auto" loop src="assets/driving-ambition.mp3"></audio>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -46,7 +46,9 @@
           <button class="primary-button" id="launchButton" type="button">Launch Drive</button>
           <button class="ghost-button" id="boostButton" type="button">Boost</button>
           <button class="ghost-button stop-button" id="stopButton" type="button">Stop</button>
+          <button class="ghost-button" id="prevTrackButton" type="button">Previous</button>
           <button class="ghost-button sound-button" id="soundButton" type="button">Play Music</button>
+          <button class="ghost-button" id="nextTrackButton" type="button">Next</button>
         </div>
         <div class="hero-stats">
           <article class="stat-tile">
@@ -60,6 +62,10 @@
           <article class="stat-tile">
             <span>Audio</span>
             <strong id="audioReadout">Muted</strong>
+          </article>
+          <article class="stat-tile">
+            <span>Current Track</span>
+            <strong id="trackReadout">Driving Ambition</strong>
           </article>
         </div>
       </div>
@@ -131,7 +137,7 @@
     <strong>mrsingh111</strong>
   </a>
 
-  <audio id="bgMusic" preload="auto" loop src="assets/driving-ambition.mp3"></audio>
+  <audio id="bgMusic" preload="auto"></audio>
 
   <script type="importmap">
     {

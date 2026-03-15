@@ -9,11 +9,20 @@ const loadingHint = document.getElementById("loadingHint");
 const launchButton = document.getElementById("launchButton");
 const boostButton = document.getElementById("boostButton");
 const stopButton = document.getElementById("stopButton");
+const prevTrackButton = document.getElementById("prevTrackButton");
 const soundButton = document.getElementById("soundButton");
+const nextTrackButton = document.getElementById("nextTrackButton");
 const speedReadout = document.getElementById("speedReadout");
 const modeReadout = document.getElementById("modeReadout");
 const audioReadout = document.getElementById("audioReadout");
+const trackReadout = document.getElementById("trackReadout");
 const bgMusic = document.getElementById("bgMusic");
+
+const playlist = [
+  { title: "Driving Ambition", src: "assets/driving-ambition.mp3" },
+  { title: "Hazy After Hours", src: "assets/hazy-after-hours.mp3" },
+  { title: "Hip Hop 02", src: "assets/hip-hop-02.mp3" }
+];
 
 const state = {
   started: false,
@@ -23,7 +32,8 @@ const state = {
   targetSpeed: 0,
   pointerX: 0,
   pointerY: 0,
-  loading: true
+  loading: true,
+  currentTrackIndex: 0
 };
 
 const scene = new THREE.Scene();
@@ -263,8 +273,21 @@ function updateUi() {
   soundButton.textContent = state.musicPlaying ? "Pause Music" : "Play Music";
   modeReadout.textContent = state.started ? (state.boosted ? "Hyper" : "Cruising") : "Idle";
   audioReadout.textContent = state.musicPlaying ? "Playing" : "Muted";
+  trackReadout.textContent = playlist[state.currentTrackIndex].title;
   sceneFrame.classList.toggle("is-running", state.started);
   sceneFrame.classList.toggle("is-drifting", state.started && state.boosted);
+}
+
+function setTrack(index) {
+  const safeIndex = (index + playlist.length) % playlist.length;
+  const wasPlaying = state.musicPlaying;
+  state.currentTrackIndex = safeIndex;
+  bgMusic.src = playlist[safeIndex].src;
+  bgMusic.load();
+  updateUi();
+  if (wasPlaying) {
+    toggleMusic(true);
+  }
 }
 
 async function toggleMusic(forcePlay) {
@@ -336,9 +359,21 @@ boostButton.addEventListener("click", () => {
 });
 
 stopButton.addEventListener("click", stopScene);
+prevTrackButton.addEventListener("click", async () => {
+  await wakeAudio();
+  setTrack(state.currentTrackIndex - 1);
+});
 soundButton.addEventListener("click", () => {
   wakeAudio();
   toggleMusic();
+});
+nextTrackButton.addEventListener("click", async () => {
+  await wakeAudio();
+  setTrack(state.currentTrackIndex + 1);
+});
+
+bgMusic.addEventListener("ended", () => {
+  setTrack(state.currentTrackIndex + 1);
 });
 
 sceneFrame.addEventListener("pointermove", onPointerMove);
@@ -422,5 +457,6 @@ function animate() {
 }
 
 resizeScene();
+setTrack(0);
 updateUi();
 animate();

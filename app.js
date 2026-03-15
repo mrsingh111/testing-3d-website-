@@ -3,6 +3,9 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const sceneFrame = document.getElementById("sceneFrame");
 const threeLayer = document.getElementById("threeLayer");
+const loadingScreen = document.getElementById("loadingScreen");
+const loadingProgress = document.getElementById("loadingProgress");
+const loadingHint = document.getElementById("loadingHint");
 const launchButton = document.getElementById("launchButton");
 const boostButton = document.getElementById("boostButton");
 const stopButton = document.getElementById("stopButton");
@@ -19,7 +22,8 @@ const state = {
   speed: 0,
   targetSpeed: 0,
   pointerX: 0,
-  pointerY: 0
+  pointerY: 0,
+  loading: true
 };
 
 const scene = new THREE.Scene();
@@ -142,8 +146,60 @@ underGlow.rotation.x = -Math.PI / 2;
 underGlow.position.set(0, -1.4, 6.1);
 scene.add(underGlow);
 
+const smokeCount = 32;
+const smokeParticles = Array.from({ length: smokeCount }, (_, index) => {
+  const particle = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.75, 0.75),
+    new THREE.MeshBasicMaterial({
+      color: 0xe8f7ff,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false
+    })
+  );
+  particle.position.set(0, -1, 6.2);
+  particle.rotation.x = -Math.PI / 2;
+  particle.userData = {
+    offset: index / smokeCount,
+    life: 0
+  };
+  scene.add(particle);
+  return particle;
+});
+
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+const engineMaster = audioContext.createGain();
+engineMaster.gain.value = 0;
+engineMaster.connect(audioContext.destination);
+
+const engineOscillator = audioContext.createOscillator();
+engineOscillator.type = "sawtooth";
+engineOscillator.frequency.value = 85;
+
+const engineSub = audioContext.createOscillator();
+engineSub.type = "triangle";
+engineSub.frequency.value = 42;
+
+const engineFilter = audioContext.createBiquadFilter();
+engineFilter.type = "lowpass";
+engineFilter.frequency.value = 540;
+engineFilter.Q.value = 1.4;
+
+const engineGain = audioContext.createGain();
+engineGain.gain.value = 0.001;
+
+engineOscillator.connect(engineFilter);
+engineSub.connect(engineFilter);
+engineFilter.connect(engineGain);
+engineGain.connect(engineMaster);
+
+engineOscillator.start();
+engineSub.start();
+
 const loader = new GLTFLoader();
 let carModel = null;
+
+loadingProgress.style.width = "24%";
 
 loader.load(
   "assets/sports-car.glb",
@@ -166,10 +222,30 @@ loader.load(
     });
 
     scene.add(carModel);
+    loadingProgress.style.width = "100%";
+    loadingHint.textContent = "Scene loaded. Tap Launch Drive to start.";
+    window.setTimeout(() => {
+      state.loading = false;
+      document.body.classList.add("is-loaded");
+      loadingScreen.setAttribute("aria-hidden", "true");
+    }, 700);
   },
-  undefined,
+  (event) => {
+    if (!event.total) {
+      loadingProgress.style.width = "56%";
+      return;
+    }
+    const progress = Math.max(18, Math.min(96, (event.loaded / event.total) * 100));
+    loadingProgress.style.width = `${progress}%`;
+  },
   () => {
     modeReadout.textContent = "Model Error";
+    loadingHint.textContent = "Model could not load, but the scene is still available.";
+    loadingProgress.style.width = "100%";
+    window.setTimeout(() => {
+      state.loading = false;
+      document.body.classList.add("is-loaded");
+    }, 700);
   }
 );
 
@@ -188,6 +264,7 @@ function updateUi() {
   modeReadout.textContent = state.started ? (state.boosted ? "Hyper" : "Cruising") : "Idle";
   audioReadout.textContent = state.musicPlaying ? "Playing" : "Muted";
   sceneFrame.classList.toggle("is-running", state.started);
+  sceneFrame.classList.toggle("is-drifting", state.started && state.boosted);
 }
 
 async function toggleMusic(forcePlay) {
@@ -207,6 +284,12 @@ async function toggleMusic(forcePlay) {
     state.musicPlaying = false;
   }
   updateUi();
+}
+
+async function wakeAudio() {
+  if (audioContext.state === "suspended") {
+    await audioContext.resume();
+  }
 }
 
 function launchScene() {
@@ -238,6 +321,7 @@ function onPointerLeave() {
 }
 
 launchButton.addEventListener("click", () => {
+  wakeAudio();
   launchScene();
   if (!state.musicPlaying) {
     toggleMusic(true);
@@ -245,6 +329,7 @@ launchButton.addEventListener("click", () => {
 });
 
 boostButton.addEventListener("click", () => {
+  wakeAudio();
   state.started = true;
   state.boosted = !state.boosted;
   updateUi();
@@ -252,6 +337,7 @@ boostButton.addEventListener("click", () => {
 
 stopButton.addEventListener("click", stopScene);
 soundButton.addEventListener("click", () => {
+  wakeAudio();
   toggleMusic();
 });
 
@@ -293,12 +379,34 @@ function animate() {
   underGlow.material.opacity = state.started ? (state.boosted ? 0.28 : 0.18) : 0.08;
   underGlow.scale.setScalar(state.started ? (state.boosted ? 1.2 : 1.05) : 1);
 
+  const normalizedSpeed = THREE.MathUtils.clamp(state.speed / 260, 0, 1);
+  engineMaster.gain.value += (((state.started ? 0.18 : 0) - engineMaster.gain.value) * 0.08);
+  engineGain.gain.value += (((0.02 + normalizedSpeed * 0.08) - engineGain.gain.value) * 0.08);
+  engineOscillator.frequency.value = 70 + normalizedSpeed * 120 + Math.sin(elapsed * 10) * 4;
+  engineSub.frequency.value = 36 + normalizedSpeed * 48;
+  engineFilter.frequency.value = 300 + normalizedSpeed * 1200;
+
+  smokeParticles.forEach((particle, index) => {
+    const phase = (elapsed * (state.boosted ? 1.8 : 1.05) + particle.userData.offset * 5) % 1;
+    const active = state.started ? phase : 0;
+    const direction = index % 2 === 0 ? -1 : 1;
+    particle.position.set(
+      direction * (0.85 + phase * 0.8),
+      -1.12 + phase * 0.9,
+      7.4 + phase * 0.2
+    );
+    particle.scale.setScalar(0.4 + phase * (state.boosted ? 2.4 : 1.4));
+    particle.material.opacity = state.started ? (state.boosted ? 0.16 : 0.08) * (1 - phase) : 0;
+    particle.rotation.z = elapsed * 0.8 + index;
+  });
+
   if (carModel) {
     carModel.position.y = -1.15 + Math.sin(elapsed * 3.4) * (state.started ? 0.06 : 0.02);
-    carModel.position.x = Math.sin(elapsed * 1.5) * (state.started ? 0.1 : 0.02) + state.pointerX * 0.08;
-    carModel.rotation.z = Math.sin(elapsed * 2.2) * (state.started ? 0.014 : 0.004);
+    carModel.position.x = Math.sin(elapsed * 1.5) * (state.started ? 0.1 : 0.02) + state.pointerX * 0.08 + (state.boosted ? Math.sin(elapsed * 2.6) * 0.22 : 0);
+    carModel.position.z = 6.2 + (state.boosted ? Math.sin(elapsed * 3.8) * 0.14 : 0);
+    carModel.rotation.z = Math.sin(elapsed * 2.2) * (state.started ? 0.014 : 0.004) + (state.boosted ? 0.055 : 0);
     carModel.rotation.x = Math.cos(elapsed * 2.8) * (state.started ? 0.012 : 0.004);
-    carModel.rotation.y = Math.PI + state.pointerX * -0.08;
+    carModel.rotation.y = Math.PI + state.pointerX * -0.08 + (state.boosted ? 0.08 : 0);
   }
 
   cyanLight.intensity = state.boosted ? 24 : 18;

@@ -12,6 +12,16 @@
 </head>
 <body>
   <div class="noise"></div>
+  <div class="loading-screen" id="loadingScreen" aria-live="polite">
+    <div class="loading-core">
+      <p class="loading-label">Preparing Neon Run GT</p>
+      <h2>Loading performance scene</h2>
+      <div class="loading-bar">
+        <span id="loadingProgress"></span>
+      </div>
+      <p class="loading-hint" id="loadingHint">Streaming model and atmosphere...</p>
+    </div>
+  </div>
   <main class="page-shell">
     <header class="site-header">
       <a class="brand" href="#top">
@@ -115,6 +125,11 @@
     <p>Built for a live GitHub Pages showcase.</p>
     <p>3D model: Poly Pizza / Quaternius. Music: Mixkit.</p>
   </footer>
+
+  <a class="signature-badge" href="https://github.com/mrsingh111" target="_blank" rel="noreferrer">
+    <span class="signature-label">Made by</span>
+    <strong>mrsingh111</strong>
+  </a>
 
   <audio id="bgMusic" preload="auto" loop src="assets/driving-ambition.mp3"></audio>
 
